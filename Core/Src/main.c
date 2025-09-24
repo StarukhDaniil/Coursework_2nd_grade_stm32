@@ -32,6 +32,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+#define FIRST_SENSOR 0
+#define SECOND_SENSOR 1
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -42,14 +45,11 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
-TIM_HandleTypeDef htim2;
-
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 
-uint16_t ADC_Res = 0;
-uint16_t ADC_First_Res = 0;
+uint16_t ADC_Res[2] = {0};
 
 /* USER CODE END PV */
 
@@ -57,7 +57,6 @@ uint16_t ADC_First_Res = 0;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
-static void MX_TIM2_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -76,8 +75,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
-	uint16_t pwm_value = 0;
 
   /* USER CODE END 1 */
 
@@ -100,18 +97,14 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_ADC1_Init();
-  MX_TIM2_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_ADCEx_Calibration_Start(&hadc1);
   HAL_ADC_Start(&hadc1);
-  HAL_TIM_Base_Start(&htim2);
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
 
   HAL_Delay(5);
   HAL_ADC_PollForConversion(&hadc1, 1);
-  ADC_First_Res = HAL_ADC_GetValue(&hadc1);
 
   /* USER CODE END 2 */
 
@@ -119,24 +112,13 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_ADC_PollForConversion(&hadc1, 1);
-	  ADC_Res = HAL_ADC_GetValue(&hadc1);
+	  HAL_ADC_PollForConversion(&hadc1, 10);
+	  ADC_Res[FIRST_SENSOR] = HAL_ADC_GetValue(&hadc1);
 
-	  if (ADC_Res < ADC_First_Res) {
-		  pwm_value = 0;;
-	  }
-	  else if (ADC_Res - ADC_First_Res < 6) {
-		  pwm_value = 0;
-	  }
-	  else if (ADC_Res - ADC_First_Res > 40) {
-		  pwm_value = 0xffff;
-	  }
-	  else {
-		  pwm_value = (ADC_Res - ADC_First_Res) * 100 << 4;
-	  }
+	  HAL_ADC_PollForConversion(&hadc1, 10);
+	  ADC_Res[SECOND_SENSOR] = HAL_ADC_GetValue(&hadc1);
 
-	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, pwm_value);
-	  HAL_UART_Transmit(&huart1, (uint8_t*)&pwm_value, sizeof(pwm_value), 1000);
+	  HAL_UART_Transmit(&huart1, (uint8_t*)&ADC_Res, sizeof(ADC_Res), 1000);
 
 	  HAL_Delay(500);
     /* USER CODE END WHILE */
@@ -213,12 +195,12 @@ static void MX_ADC1_Init(void)
   /** Common config
   */
   hadc1.Instance = ADC1;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.NbrOfConversion = 2;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
     Error_Handler();
@@ -228,7 +210,16 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_7CYCLES_5;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_7;
+  sConfig.Rank = ADC_REGULAR_RANK_2;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -236,65 +227,6 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
-
-}
-
-/**
-  * @brief TIM2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM2_Init(void)
-{
-
-  /* USER CODE BEGIN TIM2_Init 0 */
-
-  /* USER CODE END TIM2_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
-
-  /* USER CODE BEGIN TIM2_Init 1 */
-
-  /* USER CODE END TIM2_Init 1 */
-  htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 65535;
-  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM2_Init 2 */
-
-  /* USER CODE END TIM2_Init 2 */
-  HAL_TIM_MspPostInit(&htim2);
 
 }
 
