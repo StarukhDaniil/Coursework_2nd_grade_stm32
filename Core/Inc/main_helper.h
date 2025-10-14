@@ -8,10 +8,10 @@
 #ifndef MAIN_HELPER_H
 #define MAIN_HELPER_H
 
-#define RQST_FOR_DATA 0x01
+#define RQST_FOR_DATA 0x0001
 
 void wait_for_data_rqst();
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);
+void HAL_SPI_RxCpltCallBack(SPI_HandleTypeDef* hspi);
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 
 #endif
