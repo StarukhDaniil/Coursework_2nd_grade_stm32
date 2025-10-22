@@ -8,10 +8,17 @@
 #ifndef MAIN_HELPER_H
 #define MAIN_HELPER_H
 
-#define RQST_FOR_DATA 0x0001
+#include "stm32f1xx_hal.h"
 
-void wait_for_data_rqst();
-void HAL_SPI_RxCpltCallBack(SPI_HandleTypeDef* hspi);
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
+#define RQST_FOR_DATA 0x0000
+#define SPI1_NSS_PIN GPIO_PIN_15
+
+extern SPI_HandleTypeDef hspi1;
+extern uint8_t SPI1_Rx_CmdBuff;
+extern uint16_t ADC_AvgRslt[];
+
+static void process_SendRsltsCplt();
+
+HAL_StatusTypeDef SPI1_SendData(uint8_t* data, size_t size);
 
 #endif

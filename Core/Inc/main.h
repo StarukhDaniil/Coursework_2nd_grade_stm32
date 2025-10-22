@@ -62,6 +62,9 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 
+#define RSLTS_BUFF_SIZE 256
+#define CONVS_FOR_AVG 256
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

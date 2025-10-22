@@ -32,9 +32,6 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-//how many conversions ADC may do while uart is transmitting 2 bytes
-#define CVSNS_FOR_2_UART_BYTES 133
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,12 +46,10 @@ SPI_HandleTypeDef hspi1;
 DMA_HandleTypeDef hdma_spi1_tx;
 DMA_HandleTypeDef hdma_spi1_rx;
 
-TIM_HandleTypeDef htim1;
-
 /* USER CODE BEGIN PV */
 
-uint16_t ADC_AvgRslt = 0;
-uint16_t spi1_rx_buff = 0;
+uint16_t ADC_AvgRslt[RSLTS_BUFF_SIZE] = {0};
+uint8_t SPI1_Rx_CmdBuff = 0;
 
 /* USER CODE END PV */
 
@@ -63,7 +58,6 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
-static void MX_TIM1_Init(void);
 static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -108,14 +102,11 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_ADC1_Init();
-  MX_TIM1_Init();
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_ADCEx_Calibration_Start(&hadc1);
   HAL_ADC_Start(&hadc1);
-
-  HAL_SPI_Receive_DMA(&hspi1, &spi1_rx_buff, sizeof(spi1_rx_buff));
 
   /* USER CODE END 2 */
 
@@ -124,14 +115,17 @@ int main(void)
 
   while (1)
   {
-	  // UART transmits 16 bits in 133.9 ADC conversions, so for one transition - one average result
-	  for (uint16_t i = 0; i < CVSNS_FOR_2_UART_BYTES; ++i) {
-		  HAL_ADC_PollForConversion(&hadc1, 1);
-		  sum += HAL_ADC_GetValue(&hadc1);
+	  for (uint16_t RsltsCount = 0; RsltsCount < RSLTS_BUFF_SIZE; ++RsltsCount) {
+		  for (uint16_t i = 0; i < CONVS_FOR_AVG; ++i) {
+			  HAL_ADC_PollForConversion(&hadc1, 1);
+			  sum += HAL_ADC_GetValue(&hadc1);
+		  }
+
+		  ADC_AvgRslt[RsltsCount] = sum / CONVS_FOR_AVG;
+		  sum = 0;
 	  }
 
-	  ADC_AvgRslt = sum / CVSNS_FOR_2_UART_BYTES;
-	  sum = 0;
+	  SPI1_SendData((uint8_t*)(&ADC_AvgRslt), RSLTS_BUFF_SIZE);
 
     /* USER CODE END WHILE */
 
@@ -250,12 +244,13 @@ static void MX_SPI1_Init(void)
   /* USER CODE END SPI1_Init 1 */
   /* SPI1 parameter configuration*/
   hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_SLAVE;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
   hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_HARD_INPUT;
+  hspi1.Init.NSS = SPI_NSS_HARD_OUTPUT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -267,52 +262,6 @@ static void MX_SPI1_Init(void)
   /* USER CODE BEGIN SPI1_Init 2 */
 
   /* USER CODE END SPI1_Init 2 */
-
-}
-
-/**
-  * @brief TIM1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM1_Init(void)
-{
-
-  /* USER CODE BEGIN TIM1_Init 0 */
-
-  /* USER CODE END TIM1_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM1_Init 1 */
-
-  /* USER CODE END TIM1_Init 1 */
-  htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 0;
-  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 20;
-  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim1.Init.RepetitionCounter = 0;
-  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM1_Init 2 */
-
-  /* USER CODE END TIM1_Init 2 */
 
 }
 
