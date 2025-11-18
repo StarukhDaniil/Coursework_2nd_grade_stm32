@@ -44,11 +44,10 @@ ADC_HandleTypeDef hadc1;
 
 SPI_HandleTypeDef hspi1;
 DMA_HandleTypeDef hdma_spi1_tx;
-DMA_HandleTypeDef hdma_spi1_rx;
 
 /* USER CODE BEGIN PV */
 
-uint16_t ADC_AvgRslt[RSLTS_BUFF_SIZE] = {0};
+uint8_t SPI_TxBuff[RSLTS_BUFF_SIZE] = {0};
 uint8_t SPI1_Rx_CmdBuff = 0;
 
 /* USER CODE END PV */
@@ -79,6 +78,12 @@ int main(void)
 
   //this variable is for summing results to get the average number
   uint32_t sum = 0;
+  // pointer for writing 16 bits in the SPI buffer instead of 8
+  uint16_t* pwriteAVG = (uint16_t*)SPI_TxBuff;
+
+//	for testing SPI transactions
+//  uint16_t test[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+//		  	  	  	  22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
 
   /* USER CODE END 1 */
 
@@ -115,17 +120,17 @@ int main(void)
 
   while (1)
   {
-	  for (uint16_t RsltsCount = 0; RsltsCount < RSLTS_BUFF_SIZE; ++RsltsCount) {
+	  for (uint16_t ConvsCount = 0; ConvsCount < RSLTS_PER_BUFF; ++ConvsCount) {
 		  for (uint16_t i = 0; i < CONVS_FOR_AVG; ++i) {
 			  HAL_ADC_PollForConversion(&hadc1, 1);
 			  sum += HAL_ADC_GetValue(&hadc1);
 		  }
 
-		  ADC_AvgRslt[RsltsCount] = sum / CONVS_FOR_AVG;
+		  *(pwriteAVG + ConvsCount) = (uint16_t)(sum / CONVS_FOR_AVG);
 		  sum = 0;
 	  }
 
-	  SPI1_SendData((uint8_t*)(&ADC_AvgRslt), RSLTS_BUFF_SIZE);
+	  SPI1_SendData((uint8_t*)(&SPI_TxBuff), RSLTS_BUFF_SIZE, SEND_TIMEOUT);
 
     /* USER CODE END WHILE */
 
@@ -249,8 +254,8 @@ static void MX_SPI1_Init(void)
   hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_HARD_OUTPUT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -275,9 +280,6 @@ static void MX_DMA_Init(void)
   __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
-  /* DMA1_Channel2_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
   /* DMA1_Channel3_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
@@ -304,12 +306,22 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, GPIO_PIN_RESET);
+
   /*Configure GPIO pin : PB12 */
   GPIO_InitStruct.Pin = GPIO_PIN_12;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PA15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 

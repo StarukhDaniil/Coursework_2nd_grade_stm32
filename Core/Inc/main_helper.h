@@ -11,14 +11,13 @@
 #include "stm32f1xx_hal.h"
 
 #define RQST_FOR_DATA 0x0000
+#define SPI1_NSS_GPIO GPIOA
 #define SPI1_NSS_PIN GPIO_PIN_15
 
 extern SPI_HandleTypeDef hspi1;
 extern uint8_t SPI1_Rx_CmdBuff;
 extern uint16_t ADC_AvgRslt[];
 
-static void process_SendRsltsCplt();
-
-HAL_StatusTypeDef SPI1_SendData(uint8_t* data, size_t size);
+HAL_StatusTypeDef SPI1_SendData(uint8_t* data, size_t data_size, size_t timeout);
 
 #endif
