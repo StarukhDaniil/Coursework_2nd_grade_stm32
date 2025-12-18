@@ -64,7 +64,7 @@ void Error_Handler(void);
 
 #define RSLTS_BUFF_SIZE 64
 #define RSLTS_PER_BUFF RSLTS_BUFF_SIZE / 2
-#define CONVS_FOR_AVG 512
+#define CONVS_FOR_AVG 1000
 #define SEND_TIMEOUT 10
 
 /* USER CODE END Private defines */
